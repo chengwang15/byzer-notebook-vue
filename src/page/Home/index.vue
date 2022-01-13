@@ -34,7 +34,6 @@ import { cloneDeep } from 'lodash'
       callFileUploadModal: 'CALL_MODAL'
     }),
     ...mapActions({
-      getNotebookList: 'GET_NOTEBOOK_LIST',
       saveOpenedNotebook: 'SAVE_OPEND_NOTEBOOK',
       getOpenedNotebook: 'GET_OPENED_NOTEBOOK',
       getDefaultNotebook: 'GET_DEFAULT_NOTEBOOK'
@@ -102,9 +101,9 @@ export default class HomePage extends Vue {
     } catch (e) {
       console.log(e)
     }
-    
+
   }
-  
+
   async handleCreateNotebook () {
     const { isSubmit, newNotobookInfo } = await this.callCreateNoteBookModal({ folderId: '', type: 'notebook'})
     if (isSubmit) {

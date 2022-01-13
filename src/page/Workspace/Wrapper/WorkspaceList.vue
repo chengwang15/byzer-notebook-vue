@@ -1,4 +1,3 @@
-
 <template>
   <div ref="notebookListRef" class="notebook-list">
     <div class="header">
@@ -79,10 +78,7 @@ import _ from 'lodash'
   props: ['isCollapse', 'leftWidth', 'defaultWidth'],
   methods: {
     ...mapActions({
-      getNotebookList: 'GET_NOTEBOOK_LIST',
       deleteNotebook: 'DEL_NOTEBOOK',
-      getNotebookById: 'GET_NOTEBOOK_BY_ID',
-      saveOpenedNotebook: 'SAVE_OPEND_NOTEBOOK',
       getOpenedNotebook: 'GET_OPENED_NOTEBOOK',
       moveNotebook: 'MOVE_NOTEBOOK',
       moveFolder: 'MOVE_FOLDER'
@@ -124,8 +120,7 @@ export default class WorkspaceList extends Vue {
   @Watch('activeNotebook', { deep: true })
   onActiveNotebookChange (newVal) {
     if (newVal && newVal.id) {
-      const { type, id } = this.activeNotebook
-      const uniq = `${type}_${id}`
+      const { uniq } = this.activeNotebook
       this.$refs.notebookTree && this.$refs.notebookTree.setCurrentKey(uniq)
     }
   }
@@ -136,8 +131,7 @@ export default class WorkspaceList extends Vue {
 
   get expandNotebooks () {
     if (this.activeNotebook && this.activeNotebook.id) {
-      const { type, id } = this.activeNotebook
-      const uniq = `${type}_${id}`
+      const { uniq } = this.activeNotebook
       return [uniq]
     }
     return []
@@ -184,7 +178,7 @@ export default class WorkspaceList extends Vue {
     }
     return flag
   }
-  handleNodeClick (node) {
+  handleNodeClick (node, e, t) {
     const item = {
       data: node
     }
@@ -220,7 +214,9 @@ export default class WorkspaceList extends Vue {
     return {
       name: node.data.label,
       id: node.data.folder_id ? node.data.folder_id : node.data.id,
-      type: node.data.type
+      type: node.data.type,
+      commit_id: node.data.commit_id || '',
+      uniq: node.data.uniq
     }
   }
   handleRename (node) {
@@ -317,7 +313,7 @@ export default class WorkspaceList extends Vue {
     targetFolder = Array.isArray(targetFolder) ? '' : targetFolder
     const { name, type } = draggingNode.data
     let hasExsited = targetFolderChildren.filter(v => v.id && (v.name === name && v.type === type)).length > 1
-    const notebookId = draggingNode.data.id
+    const notebookId = draggingNode.data.uniq
     const currentParentFolder = this.findParentFolder(notebookId, this.originalList, draggingNode.data.type)
     const moveToId = currentParentFolder?.folder_id ?? ''
     if (moveToId === (targetFolder && targetFolder.folder_id)) {
@@ -328,7 +324,7 @@ export default class WorkspaceList extends Vue {
       target_folder_name: targetFolder?.name ?? '',
       params: {
         folder_id: targetFolder?.folder_id ?? '',
-        id: notebookId,
+        uniq: notebookId,
         type: draggingNode.data.type
       }
     }
@@ -361,20 +357,20 @@ export default class WorkspaceList extends Vue {
       }
     }
   }
-  findParentFolder (id, list, type) { // 找到 id 所在的父节点的 folder_id, 如果为空则是根目录下的 id
+  findParentFolder (uniq, list, type) { // 找到 uniq 所在的父节点的 folder_id, 如果为空则是根目录下的 uniq
     if (list && !list.length) {
       return null
     }
     let targetItem = null
     // 先找到节点元素
     if (type !== 'folder') {
-      targetItem = list.find(v => (v.children && (v.children.findIndex(child => child.id === id && child.type === type) !== -1)))
+      targetItem = list.find(v => (v.children && (v.children.findIndex(child => child.uniq === uniq && child.type === type) !== -1)))
     } else {
-      targetItem = list.find(v => (v.children && (v.children.findIndex(child => child.folder_id === id) !== -1)))
+      targetItem = list.find(v => (v.children && (v.children.findIndex(child => child.uniq === uniq) !== -1)))
     }
     if (!targetItem){
       list.find(v => {
-        let newItem = v.children && v.children.length && this.findParentFolder(id, v.children)
+        let newItem = v.children && v.children.length && this.findParentFolder(uniq, v.children)
         if (newItem) {
           targetItem = newItem
         }

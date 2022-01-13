@@ -14,9 +14,14 @@
           </el-dropdown-item>
         </el-dropdown-menu>
       </el-dropdown>
-      <span class="ml-15">
+      <span class="ml-15 save-btn">
         <icon-btn icon="el-ksd-icon-save_22" :text="$t('workflow.saveAsNotebook')" :handler="saveAsNotebook" />
       </span>
+      <SetDemo
+        :userInfo="userInfo"
+        :activeNotebook="activeNotebook"
+        @operateDemoSuccess="handleOperateDemoSuccess"
+      />
     </div>
     <el-tabs v-model="activeName" class="tabs_button" @tab-click="handleClick">
       <el-tab-pane :label="$t('workspace.notebook')" name="notebook">
@@ -52,23 +57,30 @@
 import Workflow from './workflow'
 import NodeEditor from './components/NodeEditor'
 import WorkflowPreview from './components/WorkflowPreview'
+import SetDemo from '@/components/SetDemo'
 import { Vue, Component } from 'vue-property-decorator'
 import { mapActions, mapMutations, mapState } from 'vuex'
+
 @Component({
   props: ['currentNotebook', 'activeNotebookId'],
   components: {
     Workflow,
     NodeEditor,
-    WorkflowPreview
+    WorkflowPreview,
+    SetDemo
   },
   computed: {
     ...mapState({
+      userInfo: state => state.user.userInfo,
+      activeNotebook: state => state.notebook.activeNotebook,
       openedNotebooks: state => state.notebook.openedNotebooks
     })
   },
   methods: {
     ...mapActions('CreateNoteBookModal', {
-      callCreateNoteBookModal: 'CALL_MODAL'
+      callCreateNoteBookModal: 'CALL_MODAL',
+      setDemo: 'SET_DEMO',
+      removeDemo: 'REMOVE_DEMO'
     }),
     ...mapMutations({
       setOpenedNotebook: 'SET_OPENED_NOTEBOOK',
@@ -78,7 +90,7 @@ import { mapActions, mapMutations, mapState } from 'vuex'
 })
 
 export default class WorkflowWrapper extends Vue {
-  
+
   hideDetail = false
   activeName = 'workflow'
   showNodeEditor = false
@@ -87,8 +99,13 @@ export default class WorkflowWrapper extends Vue {
   selectNodeId = null
   show = true
   disableSaveToNotebook = false
+
   changeNodeList (list) {
     this.disableSaveToNotebook = !list.length
+  }
+
+  handleOperateDemoSuccess () {
+    this.$emit('handleRefresh')
   }
 
   openNodeEditor (node) {
@@ -197,10 +214,14 @@ export default class WorkflowWrapper extends Vue {
     transform: translateX(-100%);
   }
   &-actions {
-    height: 22px;
     position: absolute;
+    display: flex;
+    height: 22px;
     left: 30px;
     top: 13px;
+    .save-btn {
+      margin-right: 15px;
+    }
   }
   &-container {
     width: 100%;

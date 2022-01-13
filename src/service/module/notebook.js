@@ -32,5 +32,7 @@ export default {
   cloneFolder: data => axios.post('/api/folder/clone', data),
   deleteFolder: id => axios.delete(`/api/folder/${id}`),
   autoComplete: params => axios.post('/api/notebook/code/suggestion', params),
-  exportNotebook: ({ type, id }) => axios.get(`/api/file/export/${id}?type=${type}`, { responseType: 'blob' })
+  exportNotebook: ({ type, id }) => axios.get(`/api/file/export/${id}?type=${type}`, { responseType: 'blob' }),
+  setDemo: params => axios.post('/api/settings/demo', params),
+  removeDemo: params => axios.post('/api/settings/demo/remove', params)
 }

@@ -42,32 +42,34 @@
           @tab-click="handleClickTab">
           <el-tab-pane
             :label="tab.name + (tab.type === 'workflow' ? '.bzwf' : '.bznb')"
-            :name="`${tab.type}_${tab.id}`"
+            :name="tab.uniq"
             v-for="tab in notebookTab"
-            :key="'tab_' + tab.id + tab.type">
+            :key="'tab_' + tab.uniq + tab.type">
             <div class="tab-content">
               <CellList
                 v-show="tab.type==='notebook'"
-                :activeNotebookId="curNotebookTab.split('_')[1]"
-                :key="'cellList' + tab.id"
+                :activeNotebookId="curNotebookTab"
+                :key="'cellList' + tab.uniq"
                 class="tab-content-cells"
-                :ref="'cellList' + tab.id"
+                :ref="'cellList' + tab.uniq"
                 :currentNotebook="tab"
                 @handleRename="handleRename"
                 @handleClone="handleClone"
                 @handleDelete="handleDelete"
                 @handleCreate="handleCreateNoteBook"
+                @handleRefresh="handleRefresh"
               />
               <WorkFlow
                 v-if="tab.type==='workflow'"
-                :key="'workflow_' + tab.id"
-                :activeNotebookId="curNotebookTab.split('_')[1]"
+                :key="'workflow_' + tab.uniq"
+                :activeNotebookId="curNotebookTab"
                 :currentNotebook="tab"
                 @changeTabList="changeTabList"
                 @handleCreate="handleCreateNoteBook"
                 @handleRename="handleRename"
                 @handleClone="handleClone"
                 @handleDelete="handleDelete"
+                @handleRefresh="handleRefresh"
                 />
             </div>
           </el-tab-pane>
@@ -97,7 +99,7 @@ import WorkFlow from '../Workflow'
 import DataCatalog from '../DataCatalog'
 import CellList from '../Notebook/CellList'
 import WorkflowSide from '../Workflow/components/SideBar'
-import { getCasAndTree } from '@/util'
+import { getDemoList, getCasAndTree } from '@/util'
 import _ from 'lodash'
 import Sortable from 'sortablejs'
 
@@ -166,13 +168,13 @@ export default {
       setNotebookList: 'SET_NOTEBOOK_LIST',
       setOpenedNotebook: 'SET_OPENED_NOTEBOOK',
       setActiveNotebook: 'SET_ACTIVE_NOTEBOOK',
+      setDemoList: 'SET_DEMO_LIST',
       changeSideBarVisible: 'CHANGE_SIDE_BAR_VISIBLE'
     }),
     ...mapActions({
       getNotebookList: 'GET_NOTEBOOK_LIST',
       deleteNotebook: 'DEL_NOTEBOOK',
       deleteFolder: 'DELETE_FOLDER',
-      getNotebookById: 'GET_NOTEBOOK_BY_ID',
       saveOpenedNotebook: 'SAVE_OPEND_NOTEBOOK',
       getOpenedNotebook: 'GET_OPENED_NOTEBOOK',
       exportNotebook: 'EXPORT_NOTEBOOK'
@@ -195,8 +197,8 @@ export default {
       this.layoutStyle.leftWidth = this.sideBarVisible ? 0 : 268
     },
     handleClickTab (tab) {
-      const id = tab.name.split('_')[1]
-      const item = this.notebookTab.find(v => v.id === id)
+      const uniq = tab.name
+      const item = this.notebookTab.find(v => v.uniq === uniq)
       this.changeTabList(item, true, true)
     },
     changeActiveTab (item) {
@@ -216,28 +218,9 @@ export default {
         return true;
       }
     },
-    async handleRemoveTab (tabTypeId) {
-      const tabId = tabTypeId.split('_')[1]
-      const removeTab = this.notebookTab.find(v => v.id === tabId)
-      const { cell_list: originList } = removeTab
-      const changedList = this.$refs[`cellList${removeTab.id}`][0].newCellList
-      const isEqual = this.arrayIsEqual(originList, changedList)
-      if (!isEqual) {
-        this.$confirm(this.$t('notebook.confirmCloseNotebook'), this.$t('notebook.unsaveTip'), {
-          confirmButtonText: this.$t('close'),
-          cancelButtonText: this.$t('notebook.backToEdit'),
-          type: 'warning',
-          customClass: 'centerButton'
-        }).then(() => {
-          this.confirmCloseTab(tabId)
-        })
-      } else {
-        this.confirmCloseTab(tabId)
-      }
-    },
     confirmCloseTab (tabTypeId) {
-      const tabId = tabTypeId.split('_')[1]
-      const list = this.notebookTab.filter(v => v.id !== tabId)
+      const tabUniq = tabTypeId
+      const list = this.notebookTab.filter(v => v.uniq !== tabUniq)
       list.length && (list[0].active = true)
       this.minusTabList(list)
     },
@@ -349,7 +332,7 @@ export default {
               this.fetchNotebookList()
             } else {
               // 删除成功后，要刷新列表 删除左侧，同时要同步删除右侧的 tab
-              let newTabList = this.notebookTab.filter(v => v.id !== item.id)
+              let newTabList = this.notebookTab.filter(v => v.uniq !== item.uniq)
               if (newTabList.length && !newTabList.find(v => v.active === 'true')) {
                 newTabList[0].active = 'true'
               }
@@ -373,6 +356,7 @@ export default {
         const res = await this.getOpenedNotebook()
         this.notebookTab = res.data?.list ?? []
         this.notebookTab = this.notebookTab.map(v => ({ ...v, isPreviewMode: v.isPreviewMode || false, mode: v.isPreviewMode || 'edit'}))
+        console.log(this.notebookTab, 23213213)
         this.setOpenedNotebook(this.notebookTab)
         let activeTab = null
         if (this.notebookTab.length) {
@@ -410,8 +394,8 @@ export default {
       })
     },
     changeRouteParams (item) {
-      this.curNotebookTab = item ? `${item.type}_${item.id}` : ''
-      const params = item ? { id: item.id, type: item.type } : {}
+      this.curNotebookTab = item ? `${item.uniq}` : ''
+      const params = item ? { uniq: item.uniq, type: item.type } : {}
       this.$router.push({name: 'notebook', params})
     },
     /**
@@ -425,14 +409,14 @@ export default {
         }
         const openedList = []
         temp.forEach(v => { // 需要去除掉重复的项（id, type 完全相同才是相同的）
-          if (!openedList.find(item => (item.id === v.id) && (item.type === v.type))) {
+          if (!openedList.find(item => (item.uniq === v.uniq) && (item.type === v.type))) {
             openedList.push(v)
           }
         })
         const toSaveList = openedList.map(v => {
           return {
             ...v,
-            active: v.id === activeNotebook.id
+            active: v.uniq === activeNotebook.uniq
           }
         })
         await this.saveOpenedNotebook({list: toSaveList})
@@ -459,7 +443,7 @@ export default {
     },
     setOpenedList () {
       const list = this.getFilteredList(this.notebookList)
-      const temp = this.notebookTab.filter(v => list.findIndex(item => item.id === v.id) !== -1)
+      const temp = this.notebookTab.filter(v => list.findIndex(item => item.uniq === v.uniq) !== -1)
       const hasActive = temp.find(v => v.active === 'true')
       if (!hasActive) {
         temp[0].active = 'true'
@@ -470,11 +454,16 @@ export default {
     moveComplete () { // 先加载 notebookList -> saveOpened -> getOpened
       this.fetchNotebookList(true)
     },
+    handleRefresh () {
+      this.fetchNotebookList(true)
+    },
     async fetchNotebookList (needSaveNewList) {
       try {
         const res = await this.getNotebookList()
         if (res) {
-          this.notebookList = getCasAndTree(res.data?.list ?? [])
+          const list = res.data?.list ?? []
+          this.setDemoList(getDemoList(list.filter(l => l.folder_id === '0')))
+          this.notebookList = getCasAndTree(list)
           this.setNotebookList(this.notebookList)
           if (needSaveNewList) {
             const needSaveNewList = this.setOpenedList()
