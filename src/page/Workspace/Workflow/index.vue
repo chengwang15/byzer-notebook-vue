@@ -6,18 +6,19 @@
           <i class="el-ksd-icon-document_22 font-22"></i><i class="el-ksd-icon-arrow_down_22 font-22"></i>
         </span>
         <el-dropdown-menu slot="dropdown">
-          <el-dropdown-item command='add'>{{$t('workflow.createWorkflow')}}</el-dropdown-item>
-          <el-dropdown-item command='rename'>{{$t('rename')}}</el-dropdown-item>
+          <el-dropdown-item v-if="!isDemo" command='add'>{{$t('workflow.createWorkflow')}}</el-dropdown-item>
+          <el-dropdown-item v-if="!isDemo" command='rename'>{{$t('rename')}}</el-dropdown-item>
           <el-dropdown-item command='clone'>{{$t('clone')}}</el-dropdown-item>
-          <el-dropdown-item command='delete'>
+          <el-dropdown-item v-if="!isDemo" command='delete'>
             <span class="txt-danger">{{$t('workflow.deleteCurrentWorkflow')}}</span>
           </el-dropdown-item>
         </el-dropdown-menu>
       </el-dropdown>
       <span class="ml-15 save-btn">
-        <icon-btn icon="el-ksd-icon-save_22" :text="$t('workflow.saveAsNotebook')" :handler="saveAsNotebook" />
+        <icon-btn v-if="!isDemo" icon="el-ksd-icon-save_22" :text="$t('workflow.saveAsNotebook')" :handler="saveAsNotebook" />
       </span>
       <SetDemo
+        v-if="userInfo.is_admin && !isDemo"
         :userInfo="userInfo"
         :activeNotebook="activeNotebook"
         @operateDemoSuccess="handleOperateDemoSuccess"
@@ -59,7 +60,7 @@ import NodeEditor from './components/NodeEditor'
 import WorkflowPreview from './components/WorkflowPreview'
 import SetDemo from '@/components/SetDemo'
 import { Vue, Component } from 'vue-property-decorator'
-import { mapActions, mapMutations, mapState } from 'vuex'
+import { mapActions, mapMutations, mapState, mapGetters } from 'vuex'
 
 @Component({
   props: ['currentNotebook', 'activeNotebookId'],
@@ -74,7 +75,8 @@ import { mapActions, mapMutations, mapState } from 'vuex'
       userInfo: state => state.user.userInfo,
       activeNotebook: state => state.notebook.activeNotebook,
       openedNotebooks: state => state.notebook.openedNotebooks
-    })
+    }),
+    ...mapGetters(['isDemo'])
   },
   methods: {
     ...mapActions('CreateNoteBookModal', {
@@ -146,9 +148,9 @@ export default class WorkflowWrapper extends Vue {
     })
   }
   handleClick (tab) {
-    const { id, type } = this.currentNotebook
+    const { uniq, type } = this.currentNotebook
     const temp = [...this.openedNotebooks]
-    const index = temp.findIndex(v => v.id === id && v.type === type)
+    const index = temp.findIndex(v => v.uniq === uniq && v.type === type)
     temp[index].isPreviewMode = tab.name === 'notebook'
     this.changeActiveNotebook(temp[index])
     this.setOpenedNotebook(temp)
@@ -167,12 +169,16 @@ export default class WorkflowWrapper extends Vue {
   }
   async saveAsNotebook () {
     const { isSubmit, newNotobookInfo } = await this.callCreateNoteBookModal({type: 'save-as-notebook'})
+    const newInfo = {
+      ...newNotobookInfo,
+      uniq: 'notebook_' + newNotobookInfo.id
+    }
     if (isSubmit) {
       this.$message({
         type: 'success',
         message: this.$t('workspace.createSuccess')
       })
-      this.changeTabList(newNotobookInfo)
+      this.changeTabList(newInfo)
     }
   }
   handleNotebook (type) {

@@ -135,6 +135,14 @@ export default {
     [types.REMOVE_DEMO]: (_, payload) => {
       return notebook.removeDemo(payload)
     }
+  },
+  getters: {
+    isDemo: state => {
+      const { activeNotebook = {}, demoList } = state
+      const { id = '', commit_id = '' } = activeNotebook
+      console.log(Boolean(demoList.includes(id) && commit_id), demoList, activeNotebook, commit_id, 'isDemo')
+      return Boolean(demoList.includes(id) && commit_id)
+    }
   }
 }
 

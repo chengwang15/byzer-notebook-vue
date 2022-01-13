@@ -178,7 +178,7 @@ export default class WorkspaceList extends Vue {
     }
     return flag
   }
-  handleNodeClick (node, e, t) {
+  handleNodeClick (node) {
     const item = {
       data: node
     }
